@@ -12,7 +12,7 @@
     <application
         android:label="SyncAlarm"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@android:drawable/ic_lock_idle_alarm">
         <activity
             android:name=".MainActivity"
             android:exported="true"
