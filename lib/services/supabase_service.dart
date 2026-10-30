@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase/supabase.dart';
 import '../models/alarm_model.dart';
 
 class SupabaseService {
@@ -11,9 +11,12 @@ class SupabaseService {
   static const String defaultUrl = 'https://YOUR_PROJECT_ID.supabase.co';
   static const String defaultAnonKey = 'YOUR_ANON_KEY';
 
+  SupabaseClient? _client;
   bool isConfigured = false;
   String? pairCode;
   String? userName;
+
+  SupabaseClient get client => _client!;
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
@@ -25,7 +28,7 @@ class SupabaseService {
 
     if (savedUrl != defaultUrl && savedKey != defaultAnonKey) {
       try {
-        await Supabase.initialize(url: savedUrl, anonKey: savedKey);
+        _client = SupabaseClient(savedUrl, savedKey);
         isConfigured = true;
       } catch (e) {
         debugPrint('Supabase init error: $e');
@@ -38,7 +41,7 @@ class SupabaseService {
     await prefs.setString('supabase_url', url);
     await prefs.setString('supabase_anon_key', anonKey);
 
-    await Supabase.initialize(url: url, anonKey: anonKey);
+    _client = SupabaseClient(url, anonKey);
     isConfigured = true;
   }
 
@@ -57,11 +60,11 @@ class SupabaseService {
   }
 
   Stream<List<AlarmModel>> getAlarmsStream() {
-    if (!isConfigured || pairCode == null) {
+    if (!isConfigured || pairCode == null || _client == null) {
       return Stream.value([]);
     }
 
-    return Supabase.instance.client
+    return _client!
         .from('alarms')
         .stream(primaryKey: ['id'])
         .eq('pair_code', pairCode!)
@@ -71,11 +74,11 @@ class SupabaseService {
   }
 
   Stream<AlarmModel?> streamSingleAlarm(String alarmId) {
-    if (!isConfigured) {
+    if (!isConfigured || _client == null) {
       return Stream.value(null);
     }
 
-    return Supabase.instance.client
+    return _client!
         .from('alarms')
         .stream(primaryKey: ['id'])
         .eq('id', alarmId)
@@ -86,10 +89,10 @@ class SupabaseService {
   }
 
   Future<void> markAlarmDismissed(String alarmId, String name) async {
-    if (!isConfigured) return;
+    if (!isConfigured || _client == null) return;
 
     try {
-      final res = await Supabase.instance.client
+      final res = await _client!
           .from('alarms')
           .select('dismissed_by')
           .eq('id', alarmId)
@@ -102,7 +105,7 @@ class SupabaseService {
 
       if (!list.contains(name)) {
         list.add(name);
-        await Supabase.instance.client
+        await _client!
             .from('alarms')
             .update({'dismissed_by': list})
             .eq('id', alarmId);
@@ -113,9 +116,9 @@ class SupabaseService {
   }
 
   Future<void> resetAlarmDismissed(String alarmId) async {
-    if (!isConfigured) return;
+    if (!isConfigured || _client == null) return;
     try {
-      await Supabase.instance.client
+      await _client!
           .from('alarms')
           .update({'dismissed_by': []})
           .eq('id', alarmId);
@@ -125,28 +128,28 @@ class SupabaseService {
   }
 
   Future<void> addAlarm(AlarmModel alarm) async {
-    if (!isConfigured) return;
-    await Supabase.instance.client.from('alarms').insert(alarm.toJson());
+    if (!isConfigured || _client == null) return;
+    await _client!.from('alarms').insert(alarm.toJson());
   }
 
   Future<void> updateAlarm(AlarmModel alarm) async {
-    if (!isConfigured) return;
-    await Supabase.instance.client
+    if (!isConfigured || _client == null) return;
+    await _client!
         .from('alarms')
         .update(alarm.toJson())
         .eq('id', alarm.id);
   }
 
   Future<void> toggleAlarm(String id, bool isEnabled) async {
-    if (!isConfigured) return;
-    await Supabase.instance.client
+    if (!isConfigured || _client == null) return;
+    await _client!
         .from('alarms')
         .update({'is_enabled': isEnabled})
         .eq('id', id);
   }
 
   Future<void> deleteAlarm(String id) async {
-    if (!isConfigured) return;
-    await Supabase.instance.client.from('alarms').delete().eq('id', id);
+    if (!isConfigured || _client == null) return;
+    await _client!.from('alarms').delete().eq('id', id);
   }
 }
