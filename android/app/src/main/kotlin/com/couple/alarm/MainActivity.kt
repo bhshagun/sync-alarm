@@ -1,0 +1,6 @@
+package com.couple.alarm
+
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity: FlutterActivity() {
+}
